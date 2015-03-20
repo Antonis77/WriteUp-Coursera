@@ -1,0 +1,62 @@
+---
+title: "WriteUp"
+author: "Antonios Papoutsakis"
+date: "Tuesday, March 10, 2015"
+output: html_document
+---
+
+##Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+## Scope
+This report presents a machine learning algorithm for the purposes of predicting the manner of exercise execution. The manner can take five values A,B,C,D,E. This report aims in presenting the algorithm and related code and show the expected errors of the algorithm. 
+
+##Executive Summary
+The training data set has been used to create the algorithm and test the accuracy of the results. It has been notcied that a large number of variables consist of NAs, blanks or are irrelevant with the analysis (like time stamps). Those variables are removed, leaving the dataset with 54 variables out of 160 original ones. As only training dataset includes result values those data have been split into learning (75% of data) and validating (25% of data). Cross validation is applied to learning data set in order to remove stongly correlated variables. With a criteria to capture 95% of the variance explained by the 53 variables, finally 25 variables remain. With those variables a random forest method is applied to predict the results (classe variable). The model is applied to the testing set and the accuracy of the method is calculated to be over 98%. Finally classe prediction for the test sample is generated.  
+
+## Getting and Cleaning data
+The following code chunk reads the training data set and removes columns that consist of NAs, blanks or time stamp values. From the original 160 variables 54 remain.
+
+```{r}
+setwd("C:/Users/apapoutsakis.GEKTERNA/Desktop/Coursera-8/Assingment")
+dataset<-read.csv("pml-training.csv",na.strings=c("", "NA"))
+dataset_clean<-dataset[,colSums(is.na(dataset)) < 1]
+dataset_clean<-dataset_clean[,-c(1:6)]
+length(dataset_clean)
+```
+
+## Preprocessing 
+The dataset is plit into two sets. One is for creating the machine learning algorithm. The set is called "learning" and consists of 50% of the data. The remaining 50% is called "validating" and will be used for validation of the algorith and out of sample error calculation. 
+
+```{r}
+library(caret)
+inlearn = createDataPartition(dataset_clean$classe, p = 0.5,list=FALSE)
+learning = dataset_clean[ inlearn,]
+validating = dataset_clean[-inlearn,]
+```
+
+## Cross Validation and Model Creation
+The cross validation will occur based on the principle components analysis. This method allows to remove variables that can be either not related to the outcome or are strongly correlated with other prediction variables.
+
+A random forest model is developed based on the learning data, and then the model is used to predict the classe variable of the validating data. 
+
+``` {r, message=F, warning=F}
+modelFit <- train(learning$classe ~ .,method="rf",preProcess="pca",data=learning)
+confMatrix<-confusionMatrix(validating$classe,predict(modelFit,validating))
+confMatrix
+```
+
+The obtained overall accuracy of 98% is considered acceptable and thus the current model will be applied to generate predictions for the Test sample.
+
+## Predict Test Sample
+Prediciton values for the test sample are produced and stored in predTest variable. Those values will be submitted to test against results in the Submission phase of the project.
+
+```{r}
+testing<-read.csv("pml-testing.csv",na.strings=c("", "NA"))
+testing_clean<-testing[,colSums(is.na(testing)) < 1]
+testing_clean<-testing_clean[,-c(1:6)]
+testPC <- predict(preProc,testing_clean[,-54])
+predTest<-predict(modelFit,testing)
+predTest
+```
+
